@@ -1,0 +1,104 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height:100%;
+}
+
+#map {
+  height:100%;
+  width:100%;
+}
+
+/* 컨테이너: 지도 위에 뜨는 정보박스 */
+#info {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  z-index: 1000;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  font-size: 14px;
+  min-width: 220px;
+  line-height: 1.4;
+}
+
+/* 모드 선택 등 버튼 묶음 */
+.mode-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* 공통 버튼 스타일 */
+.mode-buttons button,
+#info button {
+  cursor: pointer;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;  /* 파랑 계열 */
+  color: #fff;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+/* 버튼 호버 시 */
+.mode-buttons button:hover,
+#info button:hover {
+  background-color: #0056b3;
+}
+
+/* 좌표, 거리 정보 */
+#coordinates,
+#finalDistance {
+  margin: 6px 0;
+}
+
+/* 간격 입력 라벨 + 인풋 */
+label[for="intervalInput"] {
+  margin-left: 6px;
+  margin-right: 4px;
+  font-weight: bold;
+}
+
+/* 간격 입력 박스 */
+#intervalInput {
+  width: 60px;
+  box-sizing: border-box;
+  padding: 4px;
+  font-size: 13px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
+
+#resampled {
+  display: none; /* 기본적으로 안 보임 */
+}
+/* 재샘플링 결과 영역 */
+#resampled.show {
+  display: block;
+  margin-top: 8px;
+  background: #f7f7f7;
+  padding: 8px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+}
+
+#resampled p {
+  margin: 0 0 4px 0;
+  font-weight: bold;
+}
+
+/* 재샘플링된 좌표 텍스트 */
+#resampled pre {
+  margin: 0;
+  background: #fff;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9em;
+  white-space: pre-wrap; /* 길면 줄바꿈 */
+}
