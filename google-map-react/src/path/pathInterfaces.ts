@@ -37,4 +37,8 @@ export interface Vertex {
         edge.vertices.filter((vertex) => vertex.isMain)
       );
     }
+
+    getVertices(): Vertex[] {
+      return this.edges.flatMap(edge => edge.vertices);
+    }
   }

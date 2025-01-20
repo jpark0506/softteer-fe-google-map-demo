@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 
-export const useSubmitClickListener = (map, AdvancedMarker, Polyline, addMarker) => {
+export const useSubmitClickListener = (map, addMarker, loaded) => {
     useEffect(() => {
-        if (!map || !AdvancedMarker  || !Polyline) return;
+        if (!loaded) return;
     
         const handleClick = (event: any) => {
           const { latLng } = event;
@@ -14,5 +14,5 @@ export const useSubmitClickListener = (map, AdvancedMarker, Polyline, addMarker)
         return () => {
           clickListener.remove();
         };
-      }, [map, AdvancedMarker, Polyline]);
+      }, [map, loaded]);
 }
