@@ -18,6 +18,7 @@ const MapComponent = () => {
   const [AdvancedMarker, setAdvancedMarker] = useState<any>(null);
   const [Polyline, setPolyline] = useState<any>(null);
   const [markers, setMarkers] = useState<any[]>([]);
+  const [loaded, setLoaded] = useState<boolean>(false);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -28,6 +29,7 @@ const MapComponent = () => {
         setMap(initMap);
         setAdvancedMarker(()=>advancedMarkerConstructor);
         setPolyline(()=>polylineConstructor);
+        setLoaded(true);
       } catch (e) {
         console.error("[ERROR] MapComponent init Error", e);
       }
@@ -69,7 +71,7 @@ const MapComponent = () => {
     });
   };
 
-  useSubmitClickListener(map, AdvancedMarker, Polyline, addMarker);
+  useSubmitClickListener(map, addMarker, loaded);
   useDemoPathData(map, AdvancedMarker, Polyline);
 
   const removeMarker = (id: string) => {
