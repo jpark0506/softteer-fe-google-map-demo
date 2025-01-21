@@ -1,30 +1,50 @@
-# DEMO
+# React + TypeScript + Vite
 
-## 디렉토리 설명
-### 1. google-map-react
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-- 리액트로 데모를 이전해보기 위해서 만든 디렉토리입니다.
+Currently, two official plugins are available:
 
-### 2. google-map-vanilla
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-- 바닐라로 만들었던 그리기 데모입니다.
+## Expanding the ESLint configuration
 
-## 특징
-### 1. google-map-react
-- 모듈 형식으로 map 로딩을 할 수 있습니다. (Map, Overlay, Polyline, Marker)
-- 우선 벡엔드가 주는 정보를 잘 표시할 수 있는지 여부를 보려는 목적이 큰 DEMO입니다.
-- 구현된 기능: 
-- 1. 점 찍기
-- 2. 데모데이터인 길 반영하기
-- 3. 길 클릭시 이벤트 발생하기
+If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
 
-### 2. google-map-vanilla
-- 길 추가를 할 때 가이드가 될 파일입니다.
-- 그리는 것을 위주로 볼 수 있는 DEMO입니다.
-- 구현된 기능 : 
-- 1. 그리기(찍기, 드래그)
-- 2. 길 간격 자동으로 분배
-- 3. 길 간격 조정 기능
-- 4. 길 되돌리기 기능
-- 5. 새로운 길 생성 기능
-- 6. 이동모드 , 그리기 모드
+- Configure the top-level `parserOptions` property like this:
+
+```js
+export default tseslint.config({
+  languageOptions: {
+    // other options...
+    parserOptions: {
+      project: ['./tsconfig.node.json', './tsconfig.app.json'],
+      tsconfigRootDir: import.meta.dirname,
+    },
+  },
+})
+```
+
+- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
+- Optionally add `...tseslint.configs.stylisticTypeChecked`
+- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+
+```js
+// eslint.config.js
+import react from 'eslint-plugin-react'
+
+export default tseslint.config({
+  // Set the react version
+  settings: { react: { version: '18.3' } },
+  plugins: {
+    // Add the react plugin
+    react,
+  },
+  rules: {
+    // other rules...
+    // Enable its recommended rules
+    ...react.configs.recommended.rules,
+    ...react.configs['jsx-runtime'].rules,
+  },
+})
+```
