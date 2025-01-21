@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Touch Drawing + Corner Spline + Toggle Subnodes (Heavy Smooth)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="./css/styles.css"/>
+</head>
+<body>
+
+<div id="info">
+  <h3><strong>모드 선택:</strong></h3>
+  <div class="mode-buttons">
+    <button onclick="setModeDraw()">그리기 모드</button>
+    <button onclick="setModePan()">이동 모드</button>
+  </div>
+
+  <p>현재 활성 경로: <span id="activePathIndex">-</span></p>
+  <div class="mode-buttons">
+    <button onclick="createNewPath()">새로운 길 생성</button>
+    <button onclick="switchPath(1)">다음 길</button>
+    <button onclick="switchPath(-1)">이전 길</button>
+  </div>
+
+  <p id="coordinates">Lat: ---, Lng: ---</p>
+  <p id="finalDistance">길이: -</p>
+
+  <button onclick="clearCurrentPath()">현재 길 초기화</button>
+  <button onclick="undoLastStroke()">되돌리기</button>
+  
+  <div>
+    <button onclick="resampleCurrentPath()">수동 재샘플링</button>
+    <button onclick="toggleResampledArea()">재샘플링 결과 보기/숨기기</button>
+    <button onclick="toggleSubNodes()">서브노드 표시/숨기기</button>
+  </div>
+  
+  
+  <label for="intervalInput">간격 (m):</label>
+  <input type="number" id="intervalInput" value="3" style="width:60px;" />
+  <div id="resampled">
+    <p>재샘플링된 서브노드(분할점):</p>
+    <pre id="resampledOutput">(결과가 여기에 표시됩니다)</pre>
+  </div>
+
+   
+</div>
+
+<div id="map"></div>
+
+<!-- Google Maps API + geometry -->
+<script>
+  const API_KEY = "YOUR_GOOGLE_MAPS_API_KEY"; // 실제 키로 교체
+</script>
+<script 
+  src="https://maps.googleapis.com/maps/api/js?key=${API_KEY}&libraries=geometry&callback=initMap" 
+  defer>
+</script>
+
+<script>
+  function toggleResampledArea() {
+  const resampledDiv = document.getElementById("resampled");
+  resampledDiv.classList.toggle("show"); 
+}
+/* ===================================================
+   (1) cornerSpline.js
+   - 직각(코너) 보존 + Catmull-Rom 스플라인
+=================================================== */
+function computeAngleDeg(A, B, C) {
+  const ABx = B.lng() - A.lng();
+  const ABy = B.lat() - A.lat();
+  const BCx = C.lng() - B.lng();
+  const BCy = C.lat() - B.lat();
+
+  const dot = ABx * BCx + ABy * BCy;
+  const magAB = Math.sqrt(ABx*ABx + ABy*ABy);
+  const magBC = Math.sqrt(BCx*BCx + BCy*BCy);
+  if (magAB === 0 || magBC === 0) return 180;
+
+  const cosTheta = dot / (magAB * magBC);
+  const clamped = Math.max(-1, Math.min(1, cosTheta));
+  const rad = Math.acos(clamped);
+  return (rad * 180) / Math.PI;
+}
+
+function extractCornerPoints(path, angleThresholdDeg) {
+  if (path.length < 3) return [...path];
+  const cornerPoints = [];
+  cornerPoints.push(path[0]);
+  for (let i = 1; i < path.length - 1; i++) {
+    const angleDeg = computeAngleDeg(path[i-1], path[i], path[i+1]);
+    // angleDeg 이하이면 코너로 간주
+    if (angleDeg <= angleThresholdDeg) {
+      cornerPoints.push(path[i]);
+    }
+  }
+  cornerPoints.push(path[path.length - 1]);
+  return cornerPoints;
+}
+
+function catmullRomSpline(points, resolution = 0.1) {
+  if (points.length < 2) return points;
+  const result = [];
+  // 가장자리(처음/끝)를 하나씩 복제하여 보강
+  const ext = [points[0], ...points, points[points.length - 1]];
+  for (let i = 0; i < ext.length - 3; i++) {
+    const p0 = ext[i];
+    const p1 = ext[i+1];
+    const p2 = ext[i+2];
+    const p3 = ext[i+3];
+    for (let t = 0; t <= 1; t += resolution) {
+      const pt = catmullRomInterpolate(p0, p1, p2, p3, t);
+      result.push(pt);
+    }
+  }
+  // 마지막 점이 중복되지 않도록 처리
+  result.push(points[points.length - 1]);
+  return result;
+}
+
+function catmullRomInterpolate(p0, p1, p2, p3, t) {
+  const x0 = p0.lng(), y0 = p0.lat();
+  const x1 = p1.lng(), y1 = p1.lat();
+  const x2 = p2.lng(), y2 = p2.lat();
+  const x3 = p3.lng(), y3 = p3.lat();
+
+  const t2 = t*t;
+  const t3 = t2*t;
+
+  // Catmull-Rom basis matrix 계수
+  const a1x = -0.5*x0 + 1.5*x1 - 1.5*x2 + 0.5*x3;
+  const b1x = x0 - 2.5*x1 + 2*x2 - 0.5*x3;
+  const c1x = -0.5*x0 + 0.5*x2;
+  const d1x = x1;
+
+  const a1y = -0.5*y0 + 1.5*y1 - 1.5*y2 + 0.5*y3;
+  const b1y = y0 - 2.5*y1 + 2*y2 - 0.5*y3;
+  const c1y = -0.5*y0 + 0.5*y2;
+  const d1y = y1;
+
+  const X = a1x*t3 + b1x*t2 + c1x*t + d1x;
+  const Y = a1y*t3 + b1y*t2 + c1y*t + d1y;
+
+  return new google.maps.LatLng(Y, X);
+}
+
+/**
+ * (코너 보존) + 스플라인
+ * angleThresholdDeg 이하 -> 코너로 간주
+ */
+function smoothPathPreservingCorners(path, angleThresholdDeg = 110, resolution = 0.1) {
+  if (path.length < 2) return path;
+  const corners = extractCornerPoints(path, angleThresholdDeg);
+  if (corners.length < 2) return corners;
+
+  const finalResult = [];
+  for (let i = 0; i < corners.length - 1; i++) {
+    const seg = [corners[i], corners[i+1]];
+    let segSmoothed = catmullRomSpline(seg, resolution);
+    // 세그먼트가 이어질 때 겹치는 점 방지
+    if (i > 0 && segSmoothed.length > 0) {
+      segSmoothed = segSmoothed.slice(1);
+    }
+    finalResult.push(...segSmoothed);
+  }
+  return finalResult;
+}
+</script>
+
+<script>
+/* ===================================================
+   (2) sampling.js
+   - 일정 간격 샘플링 + 거리 계산
+=================================================== */
+function sampleLineByDistance(path, intervalMeters) {
+  const newPath = [];
+  if (path.length === 0) return newPath;
+
+  newPath.push(path[0]);
+  let distanceSoFar = 0;
+
+  for (let i = 1; i < path.length; i++) {
+    let start = path[i-1];
+    let end = path[i];
+    let segDist = google.maps.geometry.spherical.computeDistanceBetween(start, end);
+
+    while (distanceSoFar + segDist >= intervalMeters) {
+      const remain = intervalMeters - distanceSoFar;
+      const frac = remain / segDist;
+      const interp = google.maps.geometry.spherical.interpolate(start, end, frac);
+      newPath.push(interp);
+
+      start = interp;
+      segDist = google.maps.geometry.spherical.computeDistanceBetween(start, end);
+      distanceSoFar = 0;
+    }
+    distanceSoFar += segDist;
+  }
+
+  const lastPt = path[path.length - 1];
+  if (!lastPt.equals(newPath[newPath.length - 1])) {
+    newPath.push(lastPt);
+  }
+
+  return newPath;
+}
+
+function computeTotalDistance(path) {
+  let total = 0;
+  for (let i = 1; i < path.length; i++) {
+    total += google.maps.geometry.spherical.computeDistanceBetween(
+      path[i-1],
+      path[i]
+    );
+  }
+  return total; // meter
+}
+</script>
+
+<script>
+/* ===================================================
+   (3) pathManager.js
+   - 여러 개의 길 관리 + 
+     서브노드 표시/숨김(toggle) 처리 위해 subMarkers도 추가
+=================================================== */
+let paths = [];
+let activePathIndex = -1;
+let strokeStartIndex = null;
+
+// 서브노드 표시 여부 (true: 보이기, false: 숨기기)
+let subNodesVisible = true;
+
+function createNewPath() {
+  const newPath = {
+    originalPath: [],   
+    realTimePolyline: null, 
+    finalPolyline: null,   
+    subNodes: [],
+    subPolyline: null,
+    subMarkers: [],
+    strokeHistory: []
+  };
+  paths.push(newPath);
+  switchPath(paths.length - 1);
+}
+
+function switchPath(stepOrIndex) {
+  if (paths.length === 0) return;
+  let newIndex = activePathIndex;
+
+  if (stepOrIndex === 1 || stepOrIndex === -1) {
+    newIndex = activePathIndex + stepOrIndex;
+    if (newIndex < 0) newIndex = paths.length - 1;
+    if (newIndex >= paths.length) newIndex = 0;
+  } else {
+    newIndex = stepOrIndex;
+  }
+
+  if (newIndex < 0 || newIndex >= paths.length) return;
+  activePathIndex = newIndex;
+  document.getElementById("activePathIndex").textContent = activePathIndex + 1;
+}
+
+function getActivePath() {
+  if (activePathIndex < 0 || activePathIndex >= paths.length) return null;
+  return paths[activePathIndex];
+}
+
+function clearCurrentPath() {
+  const pathObj = getActivePath();
+  if (!pathObj) return;
+
+  pathObj.originalPath = [];
+
+  // 임시(실시간) 라인 제거
+  if (pathObj.realTimePolyline) {
+    pathObj.realTimePolyline.setMap(null);
+    pathObj.realTimePolyline = null;
+  }
+
+  // 최종(빨간) 라인 제거
+  if (pathObj.finalPolyline) {
+    pathObj.finalPolyline.setMap(null);
+    pathObj.finalPolyline = null;
+  }
+
+  // 서브노드 파란 라인 제거
+  if (pathObj.subPolyline) {
+    pathObj.subPolyline.setMap(null);
+    pathObj.subPolyline = null;
+  }
+  pathObj.subNodes = [];
+
+  // 서브노드 마커 제거
+  clearSubMarkers(pathObj);
+
+  document.getElementById("finalDistance").textContent = "길이: -";
+  document.getElementById("resampledOutput").textContent = "(결과가 여기에 표시됩니다)";
+}
+
+/** "재샘플링" 버튼 */
+function resampleCurrentPath() {
+  const pathObj = getActivePath();
+  if (!pathObj) return;
+  if (pathObj.originalPath.length < 2) {
+    alert("경로가 충분하지 않습니다.");
+    return;
+  }
+  finalizePath(pathObj);
+}
+
+/** 서브노드 마커/라인을 표시 or 숨기기 (toggle) */
+function toggleSubNodes() {
+  subNodesVisible = !subNodesVisible;
+  const pathObj = getActivePath();
+  if (!pathObj) return;
+
+  if (pathObj.subPolyline) {
+    pathObj.subPolyline.setMap(subNodesVisible ? map : null);
+  }
+
+  if (pathObj.subMarkers) {
+    pathObj.subMarkers.forEach(mk => {
+      mk.setMap(subNodesVisible ? map : null);
+    });
+  }
+}
+
+/** 서브노드 마커 모두 제거 */
+function clearSubMarkers(pathObj) {
+  if (!pathObj.subMarkers) return;
+  pathObj.subMarkers.forEach(mk => mk.setMap(null));
+  pathObj.subMarkers = [];
+}
+</script>
+
+<script>
+/* ===================================================
+   (4) drawLogic.js
+   - 드로잉 & 최종 보정
+=================================================== */
+
+/**
+ * (추가) 강한 보정 함수
+ * - 멀티 패스로 여러 번 스플라인 & 코너 보존
+ * - angleThresholdDeg를 더 낮게(예: 60) 설정
+ * - resolution을 더 작게(예: 0.05) -> 곡선 점이 많아짐
+ */
+function heavySmoothPath(path) {
+  let smoothed = [...path];
+  // 필요하다면 여러 번(2~3회) 반복
+  for (let i = 0; i < 2; i++) {
+    smoothed = smoothPathPreservingCorners(
+      smoothed, 
+      60,   // 코너 간주 각도(낮을수록 더 매끄럽게)
+      0.05  // 스플라인 해상도(값이 작을수록 촘촘히 보정)
+    );
+  }
+  return smoothed;
+}
+
+/**
+ * 드로잉 시작
+ */
+function startNewStrokePoint(latLng) {
+  const pathObj = getActivePath();
+  if (!pathObj) return;
+
+  strokeStartIndex = pathObj.originalPath.length;
+  pathObj.originalPath.push(latLng);
+  updateCoordinateDisplay(latLng);
+
+  // 실시간 보정(보라색) 업데이트
+  updateRealTimeSpline(pathObj);
+}
+
+/**
+ * 드로잉 중
+ */
+function continueStrokePoint(latLng) {
+  const pathObj = getActivePath();
+  if (!pathObj) return;
+  const lastPt = pathObj.originalPath[pathObj.originalPath.length - 1];
+  if (lastPt && lastPt.equals(latLng)) return;
+
+  pathObj.originalPath.push(latLng);
+  updateCoordinateDisplay(latLng);
+
+  // 실시간 보정(보라색) 업데이트
+  updateRealTimeSpline(pathObj);
+}
+
+/**
+ * 드로잉 종료
+ */
+function finishStroke() {
+  const pathObj = getActivePath();
+  if (!pathObj) return;
+
+  // "실시간" 보라색 라인 제거
+  if (pathObj.realTimePolyline) {
+    pathObj.realTimePolyline.setMap(null);
+    pathObj.realTimePolyline = null;
+  }
+
+  const strokeEndIndex = pathObj.originalPath.length - 1;
+
+  // ★ strokeHistory에 기록
+  pathObj.strokeHistory.push({
+    startIndex: strokeStartIndex,    // 드로잉 시작할 때 저장해둔 값
+    endIndex: strokeEndIndex
+  });
+
+  // 최종 보정 & 샘플링
+  finalizePath(pathObj);
+}
+
+/**
+ * 드로잉 중 실시간 보정 (보라색)
+ */
+function updateRealTimeSpline(pathObj) {
+  if (pathObj.originalPath.length < 2) {
+    return; // 점이 1개 이하면 곡선 불가
+  }
+
+  // 1) '강한 보정'으로 실시간 스플라인
+  const smoothed = heavySmoothPath(pathObj.originalPath);
+
+  // 2) 기존 라인 제거
+  if (pathObj.realTimePolyline) {
+    pathObj.realTimePolyline.setMap(null);
+  }
+  // 3) 새로 그림
+  pathObj.realTimePolyline = new google.maps.Polyline({
+    path: smoothed,
+    strokeColor: "#AA00FF", // 보라색
+    strokeWeight: 3,
+    strokeOpacity: 0.7,
+    map: map,
+  });
+}
+
+/**
+ * 최종 보정 + 샘플링
+ * => (수정) 보완된 경로는 거리/좌표 정보만 남기고, 지도에서는 제거
+ */
+function finalizePath(pathObj) {
+  if (pathObj.originalPath.length < 2) {
+    // 지도에 표시된 폴리라인, 마커 다 지우기
+    if (pathObj.finalPolyline) {
+      pathObj.finalPolyline.setMap(null);
+      pathObj.finalPolyline = null;
+    }
+    if (pathObj.subPolyline) {
+      pathObj.subPolyline.setMap(null);
+      pathObj.subPolyline = null;
+    }
+    // ...
+    clearSubMarkers(pathObj);
+    // 거리 표시 등도 초기화
+    document.getElementById("finalDistance").textContent = "길이: -";
+    return;
+  }
+
+  // 1) '강한 보정' 스플라인 (직각 코너 보존)
+  const smoothedPath = heavySmoothPath(pathObj.originalPath);
+
+  // 2) "최종" 빨간 라인 => 지도에 표시했다가 바로 제거
+  if (pathObj.finalPolyline) {
+    pathObj.finalPolyline.setMap(null);
+  }
+  pathObj.finalPolyline = new google.maps.Polyline({
+    path: smoothedPath,
+    strokeColor: "#FF0000",
+    strokeWeight: 4,
+    strokeOpacity: 1.0,
+    map: map,
+  });
+
+  const intervalMetersInput = document.getElementById("intervalInput");
+  const interval = parseFloat(intervalMetersInput.value) || 3; 
+
+  // 3) 일정 간격(10m) 샘플링
+  const subNodes = sampleLineByDistance(smoothedPath, interval);
+  pathObj.subNodes = subNodes;
+
+  // 파란 라인 -> 지도에 표시 후 바로 제거
+  if (pathObj.subPolyline) {
+    pathObj.subPolyline.setMap(null);
+    pathObj.subPolyline = null;
+  }
+  pathObj.subPolyline = new google.maps.Polyline({
+    path: subNodes,
+    strokeColor: "#0000FF",
+    strokeWeight: 2,
+    strokeOpacity: 0.8,
+    map: map
+  });
+
+  // 4) 서브노드 마커
+  clearSubMarkers(pathObj); 
+  pathObj.subMarkers = subNodes.map(pt => {
+    return new google.maps.Marker({
+      position: pt,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: "#0000FF",
+        fillOpacity: 1,
+        strokeColor: "#FFFFFF",
+        strokeWeight: 1,
+        scale: 3
+      },
+      map: map
+    });
+  });
+
+  // 5) 거리 계산
+  const totalDist = computeTotalDistance(smoothedPath);
+  const distKm = (totalDist / 1000).toFixed(3) + " km";
+  document.getElementById("finalDistance").textContent = "길이: " + distKm;
+
+  // 6) 서브노드 정보 표시
+  const output = subNodes.map((p, i) => 
+    `${i}: (${p.lat().toFixed(6)}, ${p.lng().toFixed(6)})`
+  );
+  document.getElementById("resampledOutput").textContent = output.join("\n");
+
+  // ★ (추가) 최종 폴리라인과 서브노드는 지도에서 삭제
+  //    즉, 사용자에게 시각적 정보는 바로 안 남기고, 
+  //    거리/좌표 텍스트 정보만 남긴다.
+  setTimeout(() => {
+    // 빨간 라인 삭제
+    if (pathObj.finalPolyline) {
+      pathObj.finalPolyline.setMap(null);
+    }
+    // 파란 라인 삭제
+    // if (pathObj.subPolyline) {
+    //   pathObj.subPolyline.setMap(null);
+    // }
+    // // 서브노드 마커 삭제
+    // if (pathObj.subMarkers) {
+    //   pathObj.subMarkers.forEach(mk => mk.setMap(null));
+    // }
+  }, 500); // 0.5초 뒤에 제거 (조금만 보고 사라짐)
+}
+</script>
+
+<script>
+/* ===================================================
+   (5) map.js
+   - 지도 초기화 + 터치/마우스 이벤트
+=================================================== */
+let map;
+let overlay;
+let currentMode = "draw"; 
+
+function initMap() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 37.449167, lng: 126.653056 }, 
+    zoom: 17,
+    draggable: false,
+    scrollwheel: false,
+    disableDoubleClickZoom: true,
+    gestureHandling: "none",
+  });
+
+  overlay = new google.maps.OverlayView();
+  overlay.onAdd = function(){};
+  overlay.draw = function(){};
+  overlay.onRemove = function(){};
+  overlay.setMap(map);
+
+  // 기본 경로 하나 생성
+  createNewPath();
+
+  // Touch
+  const mapDiv = map.getDiv();
+  mapDiv.addEventListener("touchstart", handleTouchStart, { passive: false });
+  mapDiv.addEventListener("touchmove", handleTouchMove, { passive: false });
+  mapDiv.addEventListener("touchend", handleTouchEnd, { passive: false });
+
+  // Mouse
+  mapDiv.addEventListener("mousedown", handleMouseDown);
+  mapDiv.addEventListener("mousemove", handleMouseMove);
+  mapDiv.addEventListener("mouseup", handleMouseUp);
+}
+
+function setModeDraw() {
+  currentMode = "draw";
+  setMapInteractionsEnabled(false);
+}
+
+function setModePan() {
+  currentMode = "pan";
+  setMapInteractionsEnabled(true);
+}
+
+function setMapInteractionsEnabled(enabled) {
+  map.setOptions({
+    draggable: enabled,
+    scrollwheel: enabled,
+    disableDoubleClickZoom: !enabled,
+    gestureHandling: enabled ? "auto" : "none",
+  });
+}
+
+function getLatLngFromEvent(e) {
+  const rect = map.getDiv().getBoundingClientRect();
+  let x, y;
+  if (e.touches && e.touches[0]) {
+    x = e.touches[0].clientX - rect.left;
+    y = e.touches[0].clientY - rect.top;
+  } else {
+    x = e.clientX - rect.left;
+    y = e.clientY - rect.top;
+  }
+  const proj = overlay.getProjection();
+  if (!proj) return null;
+  return proj.fromContainerPixelToLatLng(new google.maps.Point(x, y));
+}
+
+function updateCoordinateDisplay(latLng) {
+  document.getElementById("coordinates").textContent =
+    `Lat: ${latLng.lat().toFixed(6)}, Lng: ${latLng.lng().toFixed(6)}`;
+}
+
+/* Touch */
+let isDrawing = false;
+function handleTouchStart(e) {
+  if (currentMode !== "draw") return;
+  isDrawing = true;
+  e.preventDefault();
+  const latLng = getLatLngFromEvent(e);
+  if (latLng) startNewStrokePoint(latLng);
+}
+function handleTouchMove(e) {
+  if (currentMode !== "draw") return;
+  e.preventDefault();
+  if (!isDrawing) return;
+  const latLng = getLatLngFromEvent(e);
+  if (latLng) continueStrokePoint(latLng);
+}
+function handleTouchEnd(e) {
+  if (currentMode !== "draw") return;
+  isDrawing = false;
+  finishStroke();
+}
+
+/* Mouse */
+let isMouseDown = false;
+function handleMouseDown(e) {
+  if (currentMode !== "draw") return;
+  isMouseDown = true;
+  const latLng = getLatLngFromEvent(e);
+  if (latLng) startNewStrokePoint(latLng);
+}
+function handleMouseMove(e) {
+  const latLng = getLatLngFromEvent(e);
+  if (latLng) updateCoordinateDisplay(latLng);
+
+  if (currentMode !== "draw") return;
+  if (isMouseDown && latLng) {
+    continueStrokePoint(latLng);
+  }
+}
+function handleMouseUp(e) {
+  if (currentMode !== "draw") return;
+  isMouseDown = false;
+  finishStroke();
+}
+
+function undoLastStroke() {
+  const pathObj = getActivePath();
+  if (!pathObj) return;
+  if (pathObj.strokeHistory.length === 0) {
+    alert("되돌릴 Stroke가 없습니다!");
+    return;
+  }
+
+  // 마지막 Stroke 정보 가져오기
+  const lastStroke = pathObj.strokeHistory.pop();
+  const { startIndex, endIndex } = lastStroke;
+
+  // originalPath에서 해당 구간을 잘라냄
+  // 예: splice(시작, 개수)
+  const count = endIndex - startIndex + 1;
+  pathObj.originalPath.splice(startIndex, count);
+
+  // 다시 finalizePath
+  // (지워진 상태의 originalPath로 새로 보정/샘플링)
+  finalizePath(pathObj);
+}
+</script>
+
+</body>
+</html>
