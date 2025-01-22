@@ -1,17 +1,98 @@
 import { Vertex, Edge, Path } from "./pathInterfaces";
-
 // Vertex 정의
-export const vertex1: Vertex = { id: "v1", lat: 37.449167, lng: 126.653056, isMain: true };
-export const vertex2: Vertex = { id: "v2", lat: 37.450137, lng: 126.654056, isMain: false };
-export const vertex3: Vertex = { id: "v3", lat: 37.452167, lng: 126.655056, isMain: false };
-export const vertex4: Vertex = { id: "v4", lat: 37.451127, lng: 126.656056, isMain: true };
-export const vertex5: Vertex = { id: "v5", lat: 37.453167, lng: 126.657056, isMain: true };
-export const vertex6: Vertex = { id: "v6", lat: 37.454167, lng: 126.658056, isMain: false };
-export const vertex7: Vertex = { id: "v7", lat: 37.455167, lng: 126.659056, isMain: true };
-
+export const vertices: Vertex[] = [
+  { id: "v0", lat: 37.448955, lng: 126.649957, isMain: true },
+  { id: "v1", lat: 37.448973, lng: 126.649981, isMain: false },
+  { id: "v2", lat: 37.448990, lng: 126.650007, isMain: false },
+  { id: "v3", lat: 37.449006, lng: 126.650034, isMain: false },
+  { id: "v4", lat: 37.449022, lng: 126.650062, isMain: false },
+  { id: "v5", lat: 37.449037, lng: 126.650090, isMain: false },
+  { id: "v6", lat: 37.449048, lng: 126.650120, isMain: false },
+  { id: "v7", lat: 37.449063, lng: 126.650149, isMain: false },
+  { id: "v8", lat: 37.449078, lng: 126.650177, isMain: false },
+  { id: "v9", lat: 37.449094, lng: 126.650202, isMain: false },
+  { id: "v10", lat: 37.449107, lng: 126.650232, isMain: false },
+  { id: "v11", lat: 37.449117, lng: 126.650263, isMain: false },
+  { id: "v12", lat: 37.449128, lng: 126.650294, isMain: false },
+  { id: "v13", lat: 37.449139, lng: 126.650325, isMain: false },
+  { id: "v14", lat: 37.449146, lng: 126.650358, isMain: false },
+  { id: "v15", lat: 37.449153, lng: 126.650390, isMain: false },
+  { id: "v16", lat: 37.449162, lng: 126.650422, isMain: false },
+  { id: "v17", lat: 37.449173, lng: 126.650453, isMain: false },
+  { id: "v18", lat: 37.449185, lng: 126.650483, isMain: false },
+  { id: "v19", lat: 37.449200, lng: 126.650510, isMain: false },
+  { id: "v20", lat: 37.449213, lng: 126.650538, isMain: false },
+  { id: "v21", lat: 37.449226, lng: 126.650568, isMain: false },
+  { id: "v22", lat: 37.449240, lng: 126.650597, isMain: false },
+  { id: "v23", lat: 37.449252, lng: 126.650626, isMain: false },
+  { id: "v24", lat: 37.449269, lng: 126.650653, isMain: false },
+  { id: "v25", lat: 37.449268, lng: 126.650678, isMain: false },
+  { id: "v26", lat: 37.449255, lng: 126.650707, isMain: false },
+  { id: "v27", lat: 37.449240, lng: 126.650735, isMain: false },
+  { id: "v28", lat: 37.449226, lng: 126.650764, isMain: false },
+  { id: "v29", lat: 37.449210, lng: 126.650791, isMain: false },
+  { id: "v30", lat: 37.449191, lng: 126.650813, isMain: false },
+  { id: "v31", lat: 37.449169, lng: 126.650832, isMain: false },
+  { id: "v32", lat: 37.449147, lng: 126.650850, isMain: false },
+  { id: "v33", lat: 37.449129, lng: 126.650876, isMain: false },
+  { id: "v34", lat: 37.449118, lng: 126.650906, isMain: false },
+  { id: "v35", lat: 37.449104, lng: 126.650934, isMain: false },
+  { id: "v36", lat: 37.449085, lng: 126.650957, isMain: false },
+  { id: "v37", lat: 37.449064, lng: 126.650979, isMain: false },
+  { id: "v38", lat: 37.449044, lng: 126.651001, isMain: false },
+  { id: "v39", lat: 37.449028, lng: 126.651027, isMain: false },
+  { id: "v40", lat: 37.449014, lng: 126.651056, isMain: false },
+  { id: "v41", lat: 37.449003, lng: 126.651086, isMain: false },
+  { id: "v42", lat: 37.448991, lng: 126.651116, isMain: false },
+  { id: "v43", lat: 37.448975, lng: 126.651142, isMain: false },
+  { id: "v44", lat: 37.448960, lng: 126.651169, isMain: false },
+  { id: "v45", lat: 37.448945, lng: 126.651198, isMain: false },
+  { id: "v46", lat: 37.448929, lng: 126.651225, isMain: false },
+  { id: "v47", lat: 37.448917, lng: 126.651255, isMain: false },
+  { id: "v48", lat: 37.448906, lng: 126.651286, isMain: false },
+  { id: "v49", lat: 37.448895, lng: 126.651316, isMain: false },
+  { id: "v50", lat: 37.448889, lng: 126.651348, isMain: false },
+  { id: "v51", lat: 37.448880, lng: 126.651378, isMain: false },
+  { id: "v52", lat: 37.448866, lng: 126.651407, isMain: false },
+  { id: "v53", lat: 37.448853, lng: 126.651437, isMain: false },
+  { id: "v54", lat: 37.448840, lng: 126.651467, isMain: false },
+  { id: "v55", lat: 37.448826, lng: 126.651496, isMain: false },
+  { id: "v56", lat: 37.448815, lng: 126.651527, isMain: false },
+  { id: "v57", lat: 37.448804, lng: 126.651557, isMain: false },
+  { id: "v58", lat: 37.448799, lng: 126.651590, isMain: false },
+  { id: "v59", lat: 37.448802, lng: 126.651624, isMain: false },
+  { id: "v60", lat: 37.448807, lng: 126.651656, isMain: false },
+  { id: "v61", lat: 37.448825, lng: 126.651681, isMain: false },
+  { id: "v62", lat: 37.448845, lng: 126.651703, isMain: false },
+  { id: "v63", lat: 37.448868, lng: 126.651720, isMain: false },
+  { id: "v64", lat: 37.448892, lng: 126.651736, isMain: false },
+  { id: "v65", lat: 37.448918, lng: 126.651746, isMain: false },
+  { id: "v66", lat: 37.448943, lng: 126.651754, isMain: false },
+  { id: "v67", lat: 37.448969, lng: 126.651763, isMain: false },
+  { id: "v68", lat: 37.448994, lng: 126.651774, isMain: false },
+  { id: "v69", lat: 37.449019, lng: 126.651785, isMain: false },
+  { id: "v70", lat: 37.449042, lng: 126.651802, isMain: false },
+  { id: "v71", lat: 37.449056, lng: 126.651829, isMain: false },
+  { id: "v72", lat: 37.449065, lng: 126.651860, isMain: false },
+  { id: "v73", lat: 37.449066, lng: 126.651894, isMain: false },
+  { id: "v74", lat: 37.449060, lng: 126.651927, isMain: false },
+  { id: "v75", lat: 37.449059, lng: 126.651960, isMain: false },
+  { id: "v76", lat: 37.449061, lng: 126.651993, isMain: false },
+  { id: "v77", lat: 37.449071, lng: 126.652024, isMain: false },
+  { id: "v78", lat: 37.449090, lng: 126.652048, isMain: false },
+  { id: "v79", lat: 37.449112, lng: 126.652068, isMain: false },
+  { id: "v80", lat: 37.449134, lng: 126.652087, isMain: false },
+  { id: "v81", lat: 37.449151, lng: 126.652112, isMain: false },
+  { id: "v82", lat: 37.449174, lng: 126.652131, isMain: false },
+  { id: "v83", lat: 37.449198, lng: 126.652145, isMain: false },
+  { id: "v84", lat: 37.449222, lng: 126.652160, isMain: false },
+  { id: "v85", lat: 37.449246, lng: 126.652173, isMain: false },
+  { id: "v86", lat: 37.449253, lng: 126.652178, isMain: true }
+];
 // Edge 정의
-export const edge1: Edge = { id: "e1", vertices: [vertex1, vertex2, vertex3, vertex4] };
-export const edge2: Edge = { id: "e2", vertices: [vertex4, vertex5, vertex6, vertex7] };
-
-// 전체 경로 데이터
-export const pathData = new Path("path1", [edge1, edge2]);
+export const edge: Edge = {
+  id: "e1",
+  vertices: vertices
+};
+// Path 정의
+export const pathData = new Path("path1", [edge]);
