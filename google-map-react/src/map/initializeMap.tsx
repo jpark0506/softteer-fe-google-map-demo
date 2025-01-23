@@ -1,4 +1,5 @@
-import { HanyangUniversity, InhaUniversity } from "../constant/coordinate";
+import { HanyangUniversity } from "../constant/coordinate";
+import { HanyangUniversityBounds } from "../constant/coordinate/bounds";
 import loadMapObject from "./mapLoader";
 
 interface MapWithOverlay {
@@ -19,7 +20,12 @@ export const initializeMapWithOverlay = async (mapElement: HTMLElement | null): 
         scrollwheel: true,
         disableDoubleClickZoom: false,
         gestureHandling: "auto",
+        restriction: {
+            latLngBounds: HanyangUniversityBounds,
+            strictBounds: false,
+        },
         mapId: import.meta.env.VITE_REACT_APP_GOOGLE_MAP_ID,
+
     });
 
     const overlay = new OverlayView();
